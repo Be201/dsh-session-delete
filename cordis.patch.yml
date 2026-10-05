@@ -1,0 +1,5 @@
+# Inserts this bundle's Host half as one Loader row. The row id is what the
+# profile's own patch layer can override later (for example `disabled: true`).
+- insert:
+    - id: session-delete
+      name: '@local/dsh-session-delete'

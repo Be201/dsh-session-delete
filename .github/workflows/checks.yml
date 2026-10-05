@@ -1,0 +1,27 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Syntax
+        run: |
+          node --check index.js
+          node --check paths.js
+          node --check client.js
+      - name: Path derivation
+        run: node check-paths.mjs
+      - name: Host route contract
+        run: node check-route.mjs
+      - name: Regression (live Session with an open log handle)
+        run: node check-regression.mjs

@@ -1,0 +1,12 @@
+# Normalize all text to LF in the repository. This plugin is plain JS with no
+# build step and no generated artifacts, so there is nothing to carve out.
+* text=auto eol=lf
+
+# Keep binary assets untouched.
+*.svg text
+*.png binary
+*.ico binary
+
+# GitHub reads these as markdown/YAML regardless.
+*.md text eol=lf
+*.yml text eol=lf

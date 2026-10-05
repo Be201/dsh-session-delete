@@ -1,0 +1,4 @@
+{
+  "title": "Delete Session",
+  "description": "Adds Delete conversation below Archive session in the Session menu, permanently removing the session log, projection cache, and workspace accounting after confirmation."
+}

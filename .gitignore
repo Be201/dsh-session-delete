@@ -1,0 +1,10 @@
+# Nothing here is generated, so this file exists mainly to keep local
+# experiments out of the history.
+node_modules/
+*.log
+
+# Local overrides and editor state.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
