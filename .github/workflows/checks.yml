@@ -21,6 +21,8 @@ jobs:
           node --check client.js
       - name: Path derivation
         run: node check-paths.mjs
+      - name: Shortcut definition
+        run: node check-shortcut.mjs
       - name: Host route contract
         run: node check-route.mjs
       - name: Regression (live Session with an open log handle)

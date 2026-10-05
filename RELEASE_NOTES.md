@@ -1,13 +1,34 @@
-# v1.0.0
+# v1.1.0
 
-Adds a **Delete conversation** row directly below **Archive session** in every
-Session's `⋯` menu, with a confirmation dialog that permanently removes the
-Session.
+Adds a keyboard shortcut for the delete confirmation. Everything else is
+unchanged from [v1.0.0](https://github.com/Be201/dsh-session-delete/releases/tag/v1.0.0).
 
-DSH has no session-deletion API at all: `sessionPersistence` is append-only, and
-its own contract states that logs accumulate under the persistence root "until an
-external actor removes them — the seam has no delete interface". This bundle is
-that actor.
+## Shortcut
+
+| Shell | Default |
+|---|---|
+| Desktop (Windows / Linux / macOS) | `Ctrl+Shift+D` (`Cmd+Shift+D` on macOS) |
+| Web (Windows / macOS) | `Ctrl+Shift+D` (`Cmd+Shift+D` on macOS) |
+
+The menu row shows the keycaps the active profile actually resolved, so the
+binding is discoverable without opening settings.
+
+- **The shortcut only opens the confirmation dialog.** It never deletes
+  directly — a permanent operation should not be one accidental chord away.
+- The target is the Session the main Conversation is showing, resolved the same
+  way the shipped *Archive session* command resolves it.
+- With no conversation open the chord reports "open a conversation first"
+  instead of failing silently.
+- It fires only in the `page` region (typing in an input cannot trigger it) and
+  never while a modal is open.
+- Rebind it through DSH's own shortcut settings (`session.delete`); the plugin
+  only supplies defaults.
+
+`KeyD` is free of the shortcut service's reserved set and of every shipped
+default, so registration cannot collide — which matters, because
+`ctx.shortcuts.register()` **throws** on a rejected or conflicting binding
+rather than degrading. `check-shortcut.mjs` pins that by re-running DSH's own
+validation and conflict rules against the declared definition.
 
 ## What a deletion removes
 
@@ -67,12 +88,13 @@ Windows + DeepSeek Harness `0.2.0-rc.2`, `desktop` profile. Node.js 22+.
 
 ```
 node check-paths.mjs       # path derivation
+node check-shortcut.mjs    # shortcut definition vs DSH's own validation rules
 node check-route.mjs       # Host route contract
 node check-regression.mjs  # live Session with an open log handle
 node audit-cleanup.mjs <sessionId>   # read-only post-delete audit
 ```
 
-All four run without a DSH installation and pass against an empty `DSH_HOME`.
+All five run without a DSH installation and pass against an empty `DSH_HOME`.
 
 ## Known limitations
 

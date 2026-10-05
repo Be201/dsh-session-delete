@@ -36,6 +36,7 @@ window.__ModuleLoader__.load({
       'confirm.action': '永久删除',
       'confirm.pending': '正在删除…',
       'confirm.failed': '删除失败：{message}',
+      'shortcut.noSession': '请先打开一个对话',
       'cancel': '取消',
       'close': '关闭',
     };
@@ -48,6 +49,7 @@ window.__ModuleLoader__.load({
       'confirm.action': 'Delete permanently',
       'confirm.pending': 'Deleting…',
       'confirm.failed': 'Delete failed: {message}',
+      'shortcut.noSession': 'Open a conversation first',
       'cancel': 'Cancel',
       'close': 'Close',
     };
@@ -57,6 +59,10 @@ window.__ModuleLoader__.load({
       item: 'dsd_item',
       itemIcon: 'dsd_itemIcon',
       itemLabel: 'dsd_itemLabel',
+      itemKeys: 'dsd_itemKeys',
+      keys: 'dsd_keys',
+      key: 'dsd_key',
+      keyJoin: 'dsd_keyJoin',
       root: 'dsd_root',
       mask: 'dsd_mask',
       dialog: 'dsd_dialog',
@@ -86,6 +92,10 @@ window.__ModuleLoader__.load({
 .dsd_itemIcon{display:inline-flex;flex:none;width:14px;height:14px;align-items:center;justify-content:center}
 .dsd_itemIcon svg{width:14px;height:14px}
 .dsd_itemLabel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsd_itemKeys{flex:none;display:inline-flex;align-items:center;gap:3px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px;white-space:nowrap}
+.dsd_keys{display:inline-flex;flex:none;align-items:center;gap:3px;font:inherit}
+.dsd_key{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;font:inherit}
+.dsd_keyJoin{font:inherit}
 .dsd_root{pointer-events:auto;position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:max(24px,var(--dsh-frame-overlay-top,24px)) 24px}
 .dsd_mask{position:absolute;inset:var(--dsh-frame-chrome-top,0px) 0 0;backdrop-filter:var(--dsw-mask-blur)}
 .dsd_mask::after{content:'';position:absolute;inset:0;background:var(--dsw-alias-bg-mask-1)}
@@ -191,18 +201,21 @@ window.__ModuleLoader__.load({
 
     /**
      * The `...` menu row. It raises the confirmation instead of deleting, so a
-     * misplaced click can never destroy a Session.
+     * misplaced click can never destroy a Session. It also carries the effective
+     * keycaps for whatever the active profile bound to `session.delete`.
      *
      * @param props - the Session id and title, the injected request actions, the
-     * menu's open-state hook and the localized copy.
+     * menu's open-state hook, the shortcut catalog and the localized copy.
      * @returns the row.
      */
-    function DeleteSessionMenuItem({ sessionId, displayTitle, requestDelete, useMenuOpenState, t }) {
+    function DeleteSessionMenuItem({ sessionId, displayTitle, requestDelete, useMenuOpenState, useShortcuts, t }) {
       const [, setMenuOpen] = useMenuOpenState();
+      const shortcut = useShortcuts((rows) => rows.find((row) => row.id === 'session.delete'));
       return h('button', {
         type: 'button',
         className: cx.item,
         role: 'menuitem',
+        'aria-keyshortcuts': shortcut?.aria,
         onClick: () => {
           setMenuOpen(false);
           requestDelete(sessionId, displayTitle);
@@ -210,7 +223,24 @@ window.__ModuleLoader__.load({
       }, [
         h('span', { key: 'icon', className: cx.itemIcon }, h(TrashIcon, null)),
         h('span', { key: 'label', className: cx.itemLabel }, t('menu.deleteSession')),
+        shortcut !== undefined && h('span', { key: 'keys', className: cx.itemKeys }, h(Keycaps, { keys: shortcut.keys })),
       ]);
+    }
+
+    /**
+     * Render one command's keycaps, matching the host menu's keycap styling.
+     * Written here rather than imported, like the rest of this bundle's controls.
+     *
+     * @param props - the effective key labels for the active platform.
+     * @returns the keycap run, or nothing when there are no keys to show.
+     */
+    function Keycaps({ keys }) {
+      if (keys === undefined || keys.length === 0) return null;
+      return h('span', { className: cx.keys, 'aria-hidden': 'true' }, keys.map((key, index) => h(
+        'kbd',
+        { key: `${String(index)}-${key}`, className: key === '+' ? cx.keyJoin : cx.key },
+        key,
+      )));
     }
 
     /**
@@ -350,10 +380,11 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots', 'locale', 'sessions'],
+      inject: ['slots', 'locale', 'sessions', 'shortcuts'],
       apply(ctx) {
         ctx.effect(() => insertStylesheet(), 'session-delete: stylesheet');
         ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'session-delete: dictionaries');
+        const t = ctx.locale.bind(NS);
 
         // One request at a time: the dialog is modal, so a second request while
         // one is open is a race the user cannot reach deliberately.
@@ -407,6 +438,20 @@ window.__ModuleLoader__.load({
           await ctx.sessions.refresh().catch(() => {});
         };
 
+        /**
+         * The Session the main Conversation currently shows, or undefined.
+         *
+         * This mirrors the convention every host consumer uses: `mainView`
+         * retention on the Session baseline marks the row the Conversation is
+         * displaying. The shortcut API deliberately carries no Session, so the
+         * command resolves its own target exactly as the shipped archive command
+         * does.
+         *
+         * @returns the current Session row, or undefined when none is open.
+         */
+        const currentSession = () => Object.values(ctx.sessions.list.getSnapshot().byId)
+          .find((row) => (row.retainedBy?.mainView ?? 0) > 0);
+
         // Shared behavior for both sites; each adds only the hooks it consumes.
         const actions = {
           requestDelete,
@@ -416,7 +461,8 @@ window.__ModuleLoader__.load({
           deleteSession,
         };
         // The menu row also dismisses the menu, which it reaches through the
-        // owner's `useMenuOpenState` hook.
+        // owner's `useMenuOpenState` hook, and shows the effective keycaps from
+        // the slot's `useShortcuts` hook.
         const menuFace = () => ({
           ...actions,
           hooks: {
@@ -431,13 +477,59 @@ window.__ModuleLoader__.load({
           },
         });
 
+        /**
+         * Bind the confirmation to a keyboard shortcut, and let the menu row
+         * advertise whatever binding the profile resolved.
+         *
+         * The command only *opens the confirmation*; it never deletes. That keeps
+         * a permanent operation behind a deliberate dialog even when it was
+         * reached by a chord that is easy to hit by accident.
+         *
+         * `KeyD` is free of the reserved set and of every shipped default. The
+         * web shells get `Ctrl+Alt+D` because a plain `Ctrl+Shift+…` chord is the
+         * risky shape in a browser; this matches how the shipped archive command
+         * splits its own default between the desktop and web shells.
+         */
+        ctx.effect(() => ctx.shortcuts.register({
+          id: 'session.delete',
+          label: () => t('menu.deleteSession'),
+          aliases: ['delete session', 'delete conversation'],
+          defaults: {
+            'desktop:macos': { code: 'KeyD', modifiers: ['primary', 'shift'] },
+            'desktop:windows': { code: 'KeyD', modifiers: ['primary', 'shift'] },
+            'desktop:linux': { code: 'KeyD', modifiers: ['primary', 'shift'] },
+            'web:macos': { code: 'KeyD', modifiers: ['primary', 'shift'] },
+            'web:windows': { code: 'KeyD', modifiers: ['primary', 'shift'] },
+          },
+          regions: ['page'],
+          // No modal may be open: the confirmation itself is a modal, and the
+          // rename/add dialogs must keep their own keys.
+          modals: [],
+          resolve: () => {
+            const target = currentSession();
+            if (target === undefined) return { status: 'blocked', reason: t('shortcut.noSession') };
+            return {
+              status: 'handled',
+              run: () => {
+                requestDelete(target.id, target.title?.trim() || target.id);
+              },
+            };
+          },
+        }), 'session-delete: shortcut');
+
         ctx.slots.inject('sidebar.workspaces.session.menu.item', () => ctx.slots.register({
           name: 'sidebar.workspaces.session.menu.item',
           id: 'session-delete',
           // Archive occupies 400, so 500 keeps Delete directly below it.
           order: 500,
           locale: NS,
-          inject: menuFace,
+          inject: () => ({
+            ...menuFace(),
+            hooks: {
+              menuOpenState: menuOpenStateFactory,
+              shortcuts: ctx.shortcuts.catalog,
+            },
+          }),
         }, DeleteSessionMenuItem));
 
         ctx.slots.inject('shell.overlay', () => ctx.slots.register({

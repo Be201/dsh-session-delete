@@ -14,7 +14,24 @@ that Session after a confirmation dialog.
 > README below is in Chinese; the install steps are in
 > [安装 / 卸载](#安装--卸载).
 
-在每个会话的「⋯」菜单里，于**归档会话**下方增加一行**删除对话**，二次确认后**永久删除**该会话。
+在每个会话的「⋯」菜单里，于**归档会话**下方增加一行**删除对话**，二次确认后**永久删除**该会话。也可以用快捷键 **Ctrl+Shift+D** 直接唤起确认框。
+
+## 快捷键
+
+| 环境 | 默认绑定 |
+|---|---|
+| 桌面端（Windows / Linux / macOS） | `Ctrl+Shift+D`（macOS 上为 `Cmd+Shift+D`） |
+| Web（Windows / macOS） | `Ctrl+Shift+D`（macOS 上为 `Cmd+Shift+D`） |
+
+菜单行右侧会显示当前 profile 实际生效的按键，键盘用户也能看到。
+
+- **快捷键只唤起确认框，从不直接删除。** 一个永久操作不该被一个容易误触的组合键直接执行。
+- 目标会话取「主视图当前展示的那个」，与内置的归档命令同一套判定。
+- 没有打开任何对话时按下，会提示「请先打开一个对话」而不是静默失败。
+- 只在 `page` 区域生效（输入框里打字不会触发），且任何弹窗打开时都不触发。
+- 想改键：走 DSH 自己的快捷键设置，改 `session.delete` 即可；插件只提供默认值。
+
+> 为什么 Web 环境也用同一个组合：DSH 的快捷键服务对 Web 的 `Ctrl+Shift+<字母>` 是放行的（它拦的是 `Ctrl+A/C/V/X/Z/Y/Q/H` 和导航键），而桌面端本来就不做限制。所以两端可以统一。
 
 ## 它到底删除什么
 
@@ -82,6 +99,7 @@ cd dsh-session-delete
 node check-paths.mjs       # 对照真实会话树校验两个编码器与目录定位
 node check-route.mjs       # 桩 ctx 下跑完路由的状态码/响应体/实际删除
 node check-regression.mjs  # 复现第一版那个把功能堵死的 bug
+node check-shortcut.mjs    # 快捷键定义是否符合 DSH 自己的校验与冲突规则
 node audit-cleanup.mjs <sessionId>   # 删除后只读核查：三个存储是否真的清干净
 ```
 
