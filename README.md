@@ -97,17 +97,30 @@ node audit-cleanup.mjs <sessionId>   # 删除后只读核查：三个存储是�
 
 这是一个 DSH **bundle**：`package.json` 声明 `dsh.bundle.patch`，`cordis.patch.yml` 插入一行插件。用官方的插件管理器安装，**不要**手写 profile 的 `package.json` / `cordis.patch.yml`，也不要自己在该目录跑 pnpm——`install_bundle` 会做这些事。
 
-1. 把本仓库放到任意目录（例如 `~/src/dsh-session-delete`）。
-2. 让 agent 调用 `plugin_manager`：`action: install_bundle`，`target` 为该目录的**绝对路径**。
-3. 或用 CLI：`dsh plugin --profile <profile> install <绝对路径>`。
+**取一份代码**（二选一）：
 
-安装会把它作为 bundle 选入 profile 并在 `<profile>/node_modules/@local/` 下建立指向本目录的 junction。
+```powershell
+# 用 Releases 里的源码包（推荐：对应已发布版本）
+#   在 Releases 页下载 Source code (zip) 后解压，例如到 ~/src/dsh-session-delete
+
+# 或者直接 clone
+git clone https://github.com/Be201/dsh-session-delete.git ~/src/dsh-session-delete
+```
+
+**安装：**
+
+1. 让 agent 调用 `plugin_manager`：`action: install_bundle`，`target` 为上面的**绝对路径**。
+2. 或用 CLI：`dsh plugin --profile <profile> install <绝对路径>`。
+
+安装会把它作为 bundle 选入 profile，并在 `<profile>/node_modules/@local/` 下建立指向该目录的 junction。
+
+> **从 zip 解压的注意**：解压后目录名可能变成 `dsh-session-delete-1.0.0`，这没关系——`install_bundle` 认的是目录里的 `package.json`，不认目录名。
 
 - **停用（保留文件）**：`plugin_manager` 的 `set_plugin`，target `session-delete`，`enabled: false`。
 - **卸载**：`plugin_manager` 的 `remove_bundle`，target `@local/dsh-session-delete`。
-- **改动代码后**：本目录被 junction 引用，Host 侧 `index.js` 的改动需要**重启 DSH** 才生效（`hmr.root` 默认不监听 profile 之外的路径）；Client 侧 `client.js` 需要**刷新页面**。
+- **改动代码后**：该目录被 junction 引用，Host 侧 `index.js` 的改动需要**重启 DSH** 才生效（`hmr.root` 默认不监听 profile 之外的路径）；Client 侧 `client.js` 需要**刷新页面**。
 
-> **删除本目录前请先卸载**——否则会留下一个指向不存在路径的 junction 与一条失效的 bundle 依赖。
+> **删除该目录前请先卸载**——否则会留下一个指向不存在路径的 junction 与一条失效的 bundle 依赖。
 
 ### 已验证的环境
 
