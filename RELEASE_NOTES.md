@@ -1,3 +1,23 @@
+# v1.1.1
+
+Aligns the shortcut keycaps with the shipped menu rows. No behaviour change.
+
+## Fixed
+
+The keycaps shown at the end of the **Delete conversation** row were styled from
+an estimate. They now use the menu's own specification, so they match the
+keycaps the shipped rows draw:
+
+| | before | now (matches `Menu.module.css`) |
+|---|---|---|
+| Colour | `--dsw-alias-label-tertiary` | `--dsw-alias-label-caption` |
+| Size | 12px / 16px | **11px / 16px** |
+| Alignment | `flex: 1` label + `flex: none` keys | plus `margin-inline-start: auto` |
+
+The `<kbd>` run keeps `ShortcutKeys.module.css`'s rules verbatim
+(`inline-flex`, `gap: 3px`, `font: inherit`), with the `+` separators rendered
+as the same `font: inherit` joins the primitive uses.
+
 # v1.1.0
 
 Adds a keyboard shortcut for the delete confirmation. Everything else is

@@ -92,8 +92,8 @@ window.__ModuleLoader__.load({
 .dsd_itemIcon{display:inline-flex;flex:none;width:14px;height:14px;align-items:center;justify-content:center}
 .dsd_itemIcon svg{width:14px;height:14px}
 .dsd_itemLabel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dsd_itemKeys{flex:none;display:inline-flex;align-items:center;gap:3px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px;white-space:nowrap}
-.dsd_keys{display:inline-flex;flex:none;align-items:center;gap:3px;font:inherit}
+.dsd_itemKeys{flex:none;margin-inline-start:auto}
+.dsd_keys{display:inline-flex;flex:none;align-items:center;gap:3px;color:var(--dsw-alias-label-caption);font-size:11px;line-height:16px;white-space:nowrap}
 .dsd_key{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;font:inherit}
 .dsd_keyJoin{font:inherit}
 .dsd_root{pointer-events:auto;position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:max(24px,var(--dsh-frame-overlay-top,24px)) 24px}
