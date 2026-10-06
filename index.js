@@ -11,6 +11,10 @@
  * the Client-callable entry point — the same Host-owned route pattern
  * `@deepseek-ai/dsh-session-log-export` uses for `/api/session.export`.
  *
+ * A Session whose stored artifacts are already gone but whose workspace entry
+ * is not is handled as a ledger convergence rather than a refusal — see
+ * `deleteSession`.
+ *
  * @module @local/dsh-session-delete
  */
 import { rm, stat } from 'node:fs/promises';
@@ -95,6 +99,9 @@ async function locateRemovable(sessionId, cwd) {
  * and refuses only while a Turn is open. The work is stopped by the user, whose
  * conversation is the only place with a stop control.
  *
+ * A Session that is not live at all passes freely: `ctx.get('sessions')` misses,
+ * and there is no log to corrupt.
+ *
  * @param ctx - Host context.
  * @param sessionId - the requested Session.
  * @returns the refusal response, or undefined when no Turn is open.
@@ -130,6 +137,12 @@ function openTurnRefusal(ctx, sessionId) {
  * filesystem has not accepted yet. The Session directory is removed whole — it
  * holds only this Session's own artifacts.
  *
+ * The ledger is released in both cases — whether or not the stored artifacts
+ * were found. A Session whose artifacts are already gone but still listed in a
+ * workspace is one DSH removed out-of-band; converging the ledger there is what
+ * makes the row the user is clicking disappear, instead of answering a row they
+ * can see with "not found".
+ *
  * @param ctx - Host context.
  * @param sessionId - the requested Session id, already shape-checked.
  * @returns the wire status and body describing what was removed.
@@ -146,12 +159,6 @@ async function deleteSession(ctx, sessionId) {
   const snapshot = await persistence.stat(sessionId);
   const cwd = snapshot?.header?.cwd;
   const { sessionDir, projectionCacheFile, projectionCacheExists } = await locateRemovable(sessionId, cwd);
-  if (sessionDir === undefined && !projectionCacheExists) {
-    return {
-      status: 404,
-      body: { ok: false, code: 'session/not-found', message: 'That Session is no longer stored.' },
-    };
-  }
 
   const removed = { sessionDir: sessionDir !== undefined, projectionCache: false, workspace: false };
   if (sessionDir !== undefined) await rm(sessionDir, { recursive: true, force: true });
@@ -160,6 +167,12 @@ async function deleteSession(ctx, sessionId) {
     removed.projectionCache = true;
   }
 
+  // Ledger: release it in both cases. When the stored artifacts were already
+  // gone (the Session was removed out-of-band, e.g. by a previous run), the
+  // ledger is the only thing still advertising it — so the row the user sees
+  // corresponds to the ledger, and refusing with "not found" would tell them
+  // the row they are looking at does not exist. Converging the ledger instead
+  // makes that row disappear, which is what they asked for.
   const registry = ctx.get('workspaceRegistry');
   if (registry !== undefined) {
     for (const workspace of registry.list()) {
@@ -172,6 +185,15 @@ async function deleteSession(ctx, sessionId) {
     // not part of the interface contract, so a refusal is not fatal: the pin
     // set already drops ids whose Session the registry no longer finds.
     await registry.unpinSession(sessionId).catch(() => {});
+  }
+
+  // Nothing on disk AND no ledger entry: this id was never stored, or has
+  // already been fully removed and pruned everywhere. Only then is 404 honest.
+  if (sessionDir === undefined && !projectionCacheExists && !removed.workspace) {
+    return {
+      status: 404,
+      body: { ok: false, code: 'session/not-found', message: 'That Session is no longer stored.' },
+    };
   }
 
   return { status: 200, body: { ok: true, sessionId, removed } };

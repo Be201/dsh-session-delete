@@ -206,6 +206,45 @@ try {
     assert.equal(response.status, 200);
     assert.equal(existsSync(sessionDir), false, 'search fallback did not find the directory');
   });
+
+  await check('stale ledger row converges instead of 404 (the out-of-band case)', async () => {
+    // Stored artifacts are gone — but the workspace still lists the Session, so
+    // the sidebar still shows a row. The user clicked THAT row; answering it
+    // with "not found" contradicts what they see. The ledger must converge.
+    // Reproduces `session-452cf45f…` in the wild: dir+cache+projcache all gone,
+    // only the stale row remained.
+    const detached = [];
+    const staleRoute = captureRoute({
+      // No stored artifacts at all.
+      sessionPersistence: { stat: async () => undefined },
+      workspaceRegistry: {
+        list: () => [{
+          sessionIds: ['session-stale-0000', id],
+          detachSession: async (sid) => { detached.push(sid); },
+        }],
+        unpinSession: async () => {},
+      },
+    });
+    const response = await post(staleRoute, { sessionId: id });
+    const body = await response.json();
+    assert.equal(response.status, 200, `expected ledger convergence, got ${JSON.stringify(body)}`);
+    assert.equal(body.ok, true);
+    assert.equal(body.removed.sessionDir, false, 'nothing was on disk');
+    assert.equal(body.removed.projectionCache, false, 'no cache was on disk');
+    assert.equal(body.removed.workspace, true, 'ledger must be released');
+    assert.deepEqual(detached, [id], 'the stale entry must be detached');
+  });
+
+  await check('a Session never seen anywhere still answers 404', async () => {
+    // Nothing on disk, nothing in any ledger: 404 is honest here.
+    const neverRoute = captureRoute({
+      sessionPersistence: { stat: async () => undefined },
+      workspaceRegistry: { list: () => [], unpinSession: async () => {} },
+    });
+    const response = await post(neverRoute, { sessionId: id });
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).code, 'session/not-found');
+  });
 } finally {
   if (savedHome === undefined) delete process.env['DSH_HOME'];
   else process.env['DSH_HOME'] = savedHome;
