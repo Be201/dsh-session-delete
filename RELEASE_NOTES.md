@@ -1,3 +1,29 @@
+# v1.2.0
+
+## Fixed
+
+**A stale ledger row now converges instead of answering 404.**
+
+A Session could appear in the sidebar with no stored artifacts behind it — the
+log directory and projection cache were already removed out-of-band, but the
+workspace ledger still listed it. Clicking delete on that row returned:
+
+```
+删除失败：That Session is no longer stored.
+```
+
+which contradicted what the user was looking at: the row *was* right there.
+
+The Host now releases the ledger entry in both cases — whether or not the stored
+artifacts were found — and only reports 404 when the Session exists nowhere at
+all (no log, no cache, no ledger entry). A Session that is completely unknown
+still gets an honest "not found"; a Session that is only *half* gone gets the
+half that remains cleaned up.
+
+This surfaced as an "ungrouped sessions cannot be deleted" report: the ungrouped
+rows were exactly the out-of-band-removed ones, so the correlation was real but
+the cause was ledger divergence, not grouping.
+
 # v1.1.1
 
 Aligns the shortcut keycaps with the shipped menu rows. No behaviour change.
